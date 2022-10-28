@@ -1,6 +1,6 @@
 ---
 title: "Mini Data Analysis Milestone 2"
-output: html_document
+output: github_document
 ---
 
 *To complete this milestone, you can edit [this `.rmd` file](https://raw.githubusercontent.com/UBC-STAT/stat545.stat.ubc.ca/master/content/mini-project/mini-project-2.Rmd) directly. Fill in the sections that are commented out with `<!--- start your work here--->`. When you are done, make sure to knit to an `.md` file by changing the output in the YAML header to `github_document`, before submitting a tagged release on canvas.*
@@ -42,6 +42,7 @@ Begin by loading your data and the tidyverse package below:
 ```{r, message = FALSE}
 library(datateachr) # <- might contain the data you picked!
 library(tidyverse)
+
 ```
 
 # Task 1: Tidy your data (15 points)
@@ -62,6 +63,9 @@ Based on the definition above, can you identify if your data is tidy or untidy? 
 
 <!--------------------------- Start your work below --------------------------->
 
+head(vancouver_trees)
+view(vancouver_trees)
+
 <!----------------------------------------------------------------------------->
 
 ### 2.2 (5 points)
@@ -73,6 +77,18 @@ If your data is untidy, then tidy it! Then, untidy it back to it's original stat
 Be sure to explain your reasoning for this task. Show us the "before" and "after".
 
 <!--------------------------- Start your work below --------------------------->
+## The data is tidy, where each column is organized by variable, every row has a single observation, and each cell has a single value. I will make the data untidy. To make it untidy, I will use the unite function below:
+
+trees_messy <- vancouver_trees %>%
+  unite(col = species_messy, 
+    common_name, species_name,
+    sep = "/")
+head(trees_messy)
+
+trees_tidy <- trees_messy %>%
+  separate(col = species_messy,
+    into = c("common_name", "species_name"))
+head(trees_tidy)
 
 <!----------------------------------------------------------------------------->
 
@@ -82,8 +98,8 @@ Now, you should be more familiar with your data, and also have made progress in 
 
 <!-------------------------- Start your work below ---------------------------->
 
-1.  *FILL_THIS_IN*
-2.  *FILL_THIS_IN*
+1.  When was each tree planted and how can we plot that on a map?
+2.  What is the number of trees planted in each neighbourhood?
 
 <!----------------------------------------------------------------------------->
 
@@ -91,11 +107,38 @@ Explain your decision for choosing the above two research questions.
 
 <!--------------------------- Start your work below --------------------------->
 
+For research question 1, I wanted to visualize where trees were planted in each neighbourhood and what types of areas are they most commonly planted (i.e. side streets, main streets, highways, etc...). I would like to see the specific species or common name of tree planted in each neighbourhood.
+
+For research question 2, it would be interesting to see what trees were planted in each neighbourhood to be able to ask further questions such as which species is most commonly planted in each area of Vancouver and is there a correlation between the average age of homes built in each area and time when trees were planted?
+
+
 <!----------------------------------------------------------------------------->
 
 Now, try to choose a version of your data that you think will be appropriate to answer these 2 questions. Use between 4 and 8 functions that we've covered so far (i.e. by filtering, cleaning, tidy'ing, dropping irrelevant columns, etc.).
 
 <!--------------------------- Start your work below --------------------------->
+
+## this will group trees into specific species, in this case, I will filter by red maple
+filter_red_maple <- vancouver_trees %>%
+  filter(common_name == "RED MAPLE")
+view(filter_red_maple)
+
+## Drop N/A values in longitute and laditude
+drop_na_lat_long <- filter_red_maple %>%
+  drop_na("longitude", "latitude")
+view(drop_na_lat_long)
+
+## Arrange by date planted and dropping N/A values from date planted
+arrange_tree_day <- drop_na_lat_long %>%
+  drop_na("date_planted") %>%
+  arrange("date_planted")
+view(arrange_tree_day)
+
+## Keep columns common_name, neighbourhood_name, height_range_id, diameter, date_planted, longitude, latitude.
+drop_col_tree <- arrange_tree_day %>%
+  select(c(common_name, neighbourhood_name, height_range_id, diameter, date_planted, longitude, latitude))
+view(drop_col_tree)
+clean_vancouver_trees <- drop_col_tree
 
 <!----------------------------------------------------------------------------->
 
@@ -106,6 +149,13 @@ For this exercise, you'll be choosing two of the three tasks below -- both tasks
 But first, tasks 1 and 2 below ask you to modify a plot you made in a previous milestone. The plot you choose should involve plotting across at least three groups (whether by facetting, or using an aesthetic like colour). Place this plot below (you're allowed to modify the plot if you'd like). If you don't have such a plot, you'll need to make one. Place the code for your plot below.
 
 <!-------------------------- Start your work below ---------------------------->
+
+# Plotting the relationship betwen diameter and height and grouping by neighbourhood with geom_point plot
+trees_bar_neighbourhood <- ggplot(vancouver_trees, aes(neighbourhood_name)) +
+    geom_bar() +
+    ylab("Number of Trees") + xlab("Neighbourhood") +
+    theme(axis.text.x = element_text(angle = 90))
+trees_bar_neighbourhood
 
 <!----------------------------------------------------------------------------->
 
@@ -128,13 +178,32 @@ Now, choose two of the following tasks.
 
 <!-------------------------- Start your work below ---------------------------->
 
-**Task Number**: FILL_THIS_IN
+**1**: I will reorder the bar graph based on descending order of number of trees in each neighbourhood using the fct_infreq function which orders by frequency. This will make it easier to see which neighbourhood has the most number of trees planted.
+
+trees_bar_neighbourhood <- ggplot(vancouver_trees, aes(x = fct_infreq(neighbourhood_name))) +
+    geom_bar() +
+    ylab("Number of Trees") + xlab("Neighbourhood") +
+    theme(axis.text.x = element_text(angle = 90))
+trees_bar_neighbourhood
+
+year_diam <- ggplot(split_tree_date, aes(x = year, y = diameter)) +
+  geom_point(color = "blue")
+year_diam
 
 <!----------------------------------------------------------------------------->
 
 <!-------------------------- Start your work below ---------------------------->
 
-**Task Number**: FILL_THIS_IN
+**3**: I separated the time to a new column and seperated it into year, so I can see the number of trees planted in each year.
+
+split_tree_date <- clean_vancouver_trees %>%
+  separate(col = date_planted, into = c("year", "month", "date"), sep = "-")
+head(split_tree_date)
+
+
+#mutate(date_planted = lubridate::ymd(YYYY),
+#         year = year(date))
+
 
 <!----------------------------------------------------------------------------->
 
@@ -146,9 +215,9 @@ Pick a research question, and pick a variable of interest (we'll call it "Y") th
 
 <!-------------------------- Start your work below ---------------------------->
 
-**Research Question**: FILL_THIS_IN
+**Research Question**: Is there a relationship between tree diameter and the year the tree was planted?
 
-**Variable of interest**: FILL_THIS_IN
+**Variable of interest**: Variable of interest: tree diameter
 
 <!----------------------------------------------------------------------------->
 
@@ -164,6 +233,13 @@ Fit a model or run a hypothesis test that provides insight on this variable with
 
 <!-------------------------- Start your work below ---------------------------->
 
+# I will be analzying the linear relationship between the year the tree was planted and the diameter of the tree. I will use the linear regression function lm() to see this:
+
+lm_tree_diam_yr <- lm(year ~ diameter, data = split_tree_date)
+lm_tree_diam_yr
+
+
+
 <!----------------------------------------------------------------------------->
 
 ## 2.2 (5 points)
@@ -175,6 +251,11 @@ Produce something relevant from your fitted model: either predictions on Y, or a
 -   Obtain your results using the `broom` package if possible. If your model is not compatible with the broom function you're needing, then you can obtain your results by some other means, but first indicate which broom function is not compatible.
 
 <!-------------------------- Start your work below ---------------------------->
+
+# I am looking to analyze the p-value of my linear regression model and p-value of the relationship between tree diameter and year the tree was planted. The column I would like to see is in the p.value column.
+
+broom::tidy(lm_tree_diam_yr)
+
 
 <!----------------------------------------------------------------------------->
 
@@ -191,6 +272,13 @@ Take a summary table that you made from Milestone 1 (Task 4.2), and write it as 
 
 <!-------------------------- Start your work below ---------------------------->
 
+neighbourhood_trees <- vancouver_trees %>%
+   count(neighbourhood_name)
+neighbourhood_trees
+
+write_csv(neighbourhood_trees, here::here("mini-project-2", "output", "neighbourhood_trees.csv"))
+read_csv(here::here("mini-project-2", "output", "neighbourhood_trees.csv"))
+
 <!----------------------------------------------------------------------------->
 
 ## 3.2 (5 points)
@@ -200,6 +288,9 @@ Write your model object from Task 3 to an R binary file (an RDS), and load it ag
 -   The same robustness and reproducibility criteria as in 3.1 apply here.
 
 <!-------------------------- Start your work below ---------------------------->
+
+saveRDS(lm_tree_diam_yr, here::here("mini-project-2", "output", "lm_tree_diam_yr"))
+readRDS(here::here("mini-project-2", "output", "lm_tree_diam_yr"))
 
 <!----------------------------------------------------------------------------->
 
